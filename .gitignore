@@ -3,3 +3,5 @@ color_grid_png
 color_grid_ppm
 *.ppm
 *.png
+*.m4v
+compile-video.sh
