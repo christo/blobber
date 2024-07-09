@@ -158,7 +158,7 @@ int main(int argc, char* argv[]) {
         FILE* script = fopen("compile-video.sh", "w");
         if (script) {
             fprintf(script, "#!/bin/bash\n");
-            fprintf(script, "ffmpeg -framerate 1 -i output_%%05d.png -vf \"scale=1080:-1, pad=1080:1080:(ow-iw)/2:(oh-ih)/2\" -c:v libx264 -r 30 -pix_fmt yuv420p output_video.m4v\n");
+            fprintf(script, "ffmpeg -framerate 15 -i output_%%05d.png -vf \"scale=1080:-1, pad=1080:1080:(ow-iw)/2:(oh-ih)/2\" -c:v libx264 -r 30 -pix_fmt yuv420p output_video.m4v\n");
             fclose(script);
             system("chmod +x compile-video.sh");
         } else {
