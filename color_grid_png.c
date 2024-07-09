@@ -1,160 +1,144 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <stdint.h>
-#include <limits.h>
 #include <math.h>
 #include "lodepng.h"
 
+#define COLOR_DIFF_THRESHOLD 50
+
 typedef struct {
-    uint8_t r, g, b;
-} Pixel;
+    unsigned char r, g, b, a;
+} Color;
 
 typedef struct {
     int x, y;
 } Point;
 
-int abs_diff(int a, int b) {
-    return abs(a - b);
+// Function to generate a random color
+Color random_color() {
+    Color color;
+    color.r = rand() % 256;
+    color.g = rand() % 256;
+    color.b = rand() % 256;
+    color.a = 255;  // Opaque
+    return color;
 }
 
-int color_distance(Pixel a, Pixel b) {
-    return abs_diff(a.r, b.r) + abs_diff(a.g, b.g) + abs_diff(a.b, b.b);
+// Function to calculate the color difference
+int color_difference(Color c1, Color c2) {
+    return abs(c1.r - c2.r) + abs(c1.g - c2.g) + abs(c1.b - c2.b);
 }
 
-void initialize_grid(Pixel **grid, int size) {
-    for (int i = 0; i < size; ++i) {
-        for (int j = 0; j < size; ++j) {
-            grid[i][j].r = rand() % 256;
-            grid[i][j].g = rand() % 256;
-            grid[i][j].b = rand() % 256;
-        }
+// Function to get the neighbors of a pixel
+Point get_neighbor(Point p, int direction, int grid_size) {
+    Point neighbor = p;
+    switch (direction) {
+        case 0: neighbor.y = (p.y > 0) ? p.y - 1 : p.y; break; // Up
+        case 1: neighbor.y = (p.y < grid_size - 1) ? p.y + 1 : p.y; break; // Down
+        case 2: neighbor.x = (p.x > 0) ? p.x - 1 : p.x; break; // Left
+        case 3: neighbor.x = (p.x < grid_size - 1) ? p.x + 1 : p.x; break; // Right
+        case 4: neighbor.x = (p.x > 0 && p.y > 0) ? p.x - 1 : p.x; neighbor.y = (p.x > 0 && p.y > 0) ? p.y - 1 : p.y; break; // Up-Left
+        case 5: neighbor.x = (p.x < grid_size - 1 && p.y > 0) ? p.x + 1 : p.x; neighbor.y = (p.x < grid_size - 1 && p.y > 0) ? p.y - 1 : p.y; break; // Up-Right
+        case 6: neighbor.x = (p.x > 0 && p.y < grid_size - 1) ? p.x - 1 : p.x; neighbor.y = (p.x > 0 && p.y < grid_size - 1) ? p.y + 1 : p.y; break; // Down-Left
+        case 7: neighbor.x = (p.x < grid_size - 1 && p.y < grid_size - 1) ? p.x + 1 : p.x; neighbor.y = (p.x < grid_size - 1 && p.y < grid_size - 1) ? p.y + 1 : p.y; break; // Down-Right
     }
+    return neighbor;
 }
 
-Point find_centroid(Pixel **grid, int size, Pixel ref, int threshold) {
-    int sum_x = 0, sum_y = 0, count = 0;
-    for (int i = 0; i < size; ++i) {
-        for (int j = 0; j < size; ++j) {
-            if (color_distance(grid[i][j], ref) < threshold) {
-                sum_x += i;
-                sum_y += j;
-                count++;
-            }
-        }
+// Function to find the centroid of a set of points
+Point find_centroid(Point* points, int count) {
+    int sum_x = 0, sum_y = 0;
+    for (int i = 0; i < count; i++) {
+        sum_x += points[i].x;
+        sum_y += points[i].y;
     }
     Point centroid = {sum_x / count, sum_y / count};
     return centroid;
 }
 
-Pixel get_closest_neighbor(Pixel **grid, int size, int x, int y, Point target) {
-    Pixel closest_pixel;
-    int min_distance = INT_MAX;
-
-    for (int i = -1; i <= 1; ++i) {
-        for (int j = -1; j <= 1; ++j) {
-            int nx = x + i;
-            int ny = y + j;
-            if (nx >= 0 && nx < size && ny >= 0 && ny < size) {
-                int dist = abs_diff(nx, target.x) + abs_diff(ny, target.y);
-                if (dist < min_distance) {
-                    min_distance = dist;
-                    closest_pixel = grid[nx][ny];
-                }
-            }
+// Function to save the image as a PNG file
+void save_image(Color* grid, int grid_size, int iterations) {
+    char filename[50];
+    snprintf(filename, sizeof(filename), "output_%dx%d_%d.png", grid_size, grid_size, iterations);
+    
+    unsigned char* image = (unsigned char*)malloc(grid_size * grid_size * 4);
+    for (int y = 0; y < grid_size; y++) {
+        for (int x = 0; x < grid_size; x++) {
+            int index = y * grid_size + x;
+            image[4 * index + 0] = grid[index].r;
+            image[4 * index + 1] = grid[index].g;
+            image[4 * index + 2] = grid[index].b;
+            image[4 * index + 3] = grid[index].a;
         }
     }
-
-    return closest_pixel;
-}
-
-void swap_colors(Pixel *a, Pixel *b) {
-    Pixel temp = *a;
-    *a = *b;
-    *b = temp;
-}
-
-void process_grid(Pixel **grid, int size, int iterations, int threshold) {
-    if (iterations >= 100) {
-        for (int i = 0; i < 100; ++i) {
-            printf("_");
-        }
-        printf("\n");
-    }
-
-    int dot_interval = iterations >= 100 ? iterations / 100 : 1;
-
-    for (int iter = 0; iter < iterations; ++iter) {
-        if (iterations >= 100 && iter > 0 && iter % dot_interval == 0) {
-            printf(".");
-            fflush(stdout);
-        }
-
-        int x = rand() % size;
-        int y = rand() % size;
-        Pixel ref = grid[x][y];
-        Point centroid = find_centroid(grid, size, ref, threshold);
-        Pixel closest_neighbor = get_closest_neighbor(grid, size, x, y, centroid);
-        swap_colors(&grid[x][y], &closest_neighbor);
-    }
-
-    if (iterations >= 100) {
-        printf("\n");
-    }
-}
-
-void write_png(const char *filename, Pixel **grid, int size) {
-    unsigned char *image = malloc(size * size * 4);
-    unsigned char *ptr = image;
-    for (int i = 0; i < size; ++i) {
-        for (int j = 0; j < size; ++j) {
-            *ptr++ = grid[i][j].r;
-            *ptr++ = grid[i][j].g;
-            *ptr++ = grid[i][j].b;
-            *ptr++ = 255;  // Alpha channel set to 255 (opaque)
-        }
-    }
-
-    unsigned error = lodepng_encode32_file(filename, image, size, size);
+    unsigned error = lodepng_encode32_file(filename, image, grid_size, grid_size);
     if (error) {
-        fprintf(stderr, "Error %u: %s\n", error, lodepng_error_text(error));
+        printf("Error %u: %s\n", error, lodepng_error_text(error));
     }
-
     free(image);
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     if (argc != 3) {
-        fprintf(stderr, "Usage: %s <iterations> <size>\n", argv[0]);
+        printf("Usage: %s <iterations> <grid_size>\n", argv[0]);
         return 1;
     }
 
     int iterations = atoi(argv[1]);
-    int size = atoi(argv[2]);
-
-    if (iterations <= 0 || size <= 0) {
-        fprintf(stderr, "Both iterations and size must be positive integers.\n");
-        return 1;
-    }
+    int grid_size = atoi(argv[2]);
 
     srand(time(NULL));
 
-    Pixel **grid = malloc(size * sizeof(Pixel *));
-    for (int i = 0; i < size; ++i) {
-        grid[i] = malloc(size * sizeof(Pixel));
+    // Initialize the grid with random colors
+    Color* grid = (Color*)malloc(grid_size * grid_size * sizeof(Color));
+    for (int i = 0; i < grid_size * grid_size; i++) {
+        grid[i] = random_color();
     }
 
-    initialize_grid(grid, size);
-    process_grid(grid, size, iterations, 50);
+    // Perform the iterations
+    for (int iter = 0; iter < iterations; iter++) {
+        Point a = {rand() % grid_size, rand() % grid_size};
+        Color color_a = grid[a.y * grid_size + a.x];
 
-    char filename[64];
-    snprintf(filename, sizeof(filename), "output_%dx%d_%diterations.png", size, size, iterations);
-    write_png(filename, grid, size);
+        Point similar_points[grid_size * grid_size];
+        int similar_count = 0;
 
-    for (int i = 0; i < size; ++i) {
-        free(grid[i]);
+        for (int y = 0; y < grid_size; y++) {
+            for (int x = 0; x < grid_size; x++) {
+                if (color_difference(color_a, grid[y * grid_size + x]) < COLOR_DIFF_THRESHOLD) {
+                    similar_points[similar_count++] = (Point){x, y};
+                }
+            }
+        }
+
+        if (similar_count == 0) continue;
+
+        Point centroid = find_centroid(similar_points, similar_count);
+
+        // Find the neighbor of `a` that is closest to the centroid
+        int best_direction = 0;
+        double best_distance = hypot(a.x - centroid.x, a.y - centroid.y);
+
+        for (int dir = 0; dir < 8; dir++) {
+            Point neighbor = get_neighbor(a, dir, grid_size);
+            double distance = hypot(neighbor.x - centroid.x, neighbor.y - centroid.y);
+            if (distance < best_distance) {
+                best_distance = distance;
+                best_direction = dir;
+            }
+        }
+
+        Point b = get_neighbor(a, best_direction, grid_size);
+
+        // Swap the colors of `a` and its best neighbor
+        Color temp = grid[a.y * grid_size + a.x];
+        grid[a.y * grid_size + a.x] = grid[b.y * grid_size + b.x];
+        grid[b.y * grid_size + b.x] = temp;
     }
+
+    // Save the resulting grid as a PNG file
+    save_image(grid, grid_size, iterations);
+
     free(grid);
-
     return 0;
 }
