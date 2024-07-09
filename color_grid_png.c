@@ -1,10 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <math.h>
 #include "lodepng.h"
 
-#define COLOR_DIFF_THRESHOLD 50
+#define COLOR_DIFF_THRESHOLD 30
 
 typedef struct {
     unsigned char r, g, b, a;
@@ -57,9 +58,13 @@ Point find_centroid(Point* points, int count) {
 }
 
 // Function to save the image as a PNG file
-void save_image(Color* grid, int grid_size, int iterations) {
+void save_image(Color* grid, int grid_size, int iterations, int save_interval, int save_index) {
     char filename[50];
-    snprintf(filename, sizeof(filename), "output_%dx%d_%d.png", grid_size, grid_size, iterations);
+    if (save_interval > 0) {
+        snprintf(filename, sizeof(filename), "output_%05d.png", save_index);
+    } else {
+        snprintf(filename, sizeof(filename), "output_%dx%d_%d.png", grid_size, grid_size, iterations);
+    }
     
     unsigned char* image = (unsigned char*)malloc(grid_size * grid_size * 4);
     for (int y = 0; y < grid_size; y++) {
@@ -79,13 +84,15 @@ void save_image(Color* grid, int grid_size, int iterations) {
 }
 
 int main(int argc, char* argv[]) {
-    if (argc != 3) {
-        printf("Usage: %s <iterations> <grid_size>\n", argv[0]);
+    if (argc < 3 || argc > 4) {
+        printf("Usage: %s <iterations> <grid_size> [-m]\n", argv[0]);
         return 1;
     }
 
     int iterations = atoi(argv[1]);
     int grid_size = atoi(argv[2]);
+    int save_interval = (argc == 4 && strcmp(argv[3], "-m") == 0) ? 100000 : 0;
+    int save_index = 0;
 
     srand(time(NULL));
 
@@ -134,10 +141,30 @@ int main(int argc, char* argv[]) {
         Color temp = grid[a.y * grid_size + a.x];
         grid[a.y * grid_size + a.x] = grid[b.y * grid_size + b.x];
         grid[b.y * grid_size + b.x] = temp;
+
+        // Save image every save_interval iterations if -m option is specified
+        if (save_interval > 0 && (iter + 1) % save_interval == 0) {
+            save_image(grid, grid_size, iterations, save_interval, save_index++);
+        }
     }
 
     // Save the resulting grid as a PNG file
-    save_image(grid, grid_size, iterations);
+    if (save_interval == 0) {
+        save_image(grid, grid_size, iterations, 0, 0);
+    }
+
+    // Create the shell script to compile the video if -m option is specified
+    if (save_interval > 0) {
+        FILE* script = fopen("compile-video.sh", "w");
+        if (script) {
+            fprintf(script, "#!/bin/bash\n");
+            fprintf(script, "ffmpeg -framerate 1 -i output_%%05d.png -vf \"scale=1080:-1, pad=1080:1080:(ow-iw)/2:(oh-ih)/2\" -c:v libx264 -r 30 -pix_fmt yuv420p output_video.m4v\n");
+            fclose(script);
+            system("chmod +x compile-video.sh");
+        } else {
+            printf("Failed to create compile-video.sh\n");
+        }
+    }
 
     free(grid);
     return 0;
