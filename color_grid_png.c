@@ -15,7 +15,7 @@ typedef struct {
     int x, y;
 } Point;
 
-// Function to generate a random color
+// random color using linear distribution over r,g,b components
 Color random_color() {
     Color color;
     color.r = rand() % 256;
@@ -25,12 +25,12 @@ Color random_color() {
     return color;
 }
 
-// Function to calculate the color difference
+// color difference
 int color_difference(Color c1, Color c2) {
     return abs(c1.r - c2.r) + abs(c1.g - c2.g) + abs(c1.b - c2.b);
 }
 
-// Function to get the neighbors of a pixel
+// get the neighbors of a pixel
 Point get_neighbor(Point p, int direction, int grid_size) {
     Point neighbor = p;
     switch (direction) {
@@ -46,7 +46,7 @@ Point get_neighbor(Point p, int direction, int grid_size) {
     return neighbor;
 }
 
-// Function to find the centroid of a set of points
+// find the centroid of an array of points of length count
 Point find_centroid(Point* points, int count) {
     int sum_x = 0, sum_y = 0;
     for (int i = 0; i < count; i++) {
@@ -57,7 +57,7 @@ Point find_centroid(Point* points, int count) {
     return centroid;
 }
 
-// Function to save the image as a PNG file
+// save the image as a PNG
 void save_image(Color* grid, int grid_size, int iterations, int save_interval, int save_index) {
     char filename[50];
     if (save_interval > 0) {
@@ -96,13 +96,11 @@ int main(int argc, char* argv[]) {
 
     srand(time(NULL));
 
-    // Initialize the grid with random colors
     Color* grid = (Color*)malloc(grid_size * grid_size * sizeof(Color));
     for (int i = 0; i < grid_size * grid_size; i++) {
         grid[i] = random_color();
     }
 
-    // Perform the iterations
     for (int iter = 0; iter < iterations; iter++) {
         Point a = {rand() % grid_size, rand() % grid_size};
         Color color_a = grid[a.y * grid_size + a.x];
@@ -142,18 +140,17 @@ int main(int argc, char* argv[]) {
         grid[a.y * grid_size + a.x] = grid[b.y * grid_size + b.x];
         grid[b.y * grid_size + b.x] = temp;
 
-        // Save image every save_interval iterations if -m option is specified
+        // if -m option to write frames as movie, save image every save_interval iterations 
         if (save_interval > 0 && (iter + 1) % save_interval == 0) {
             save_image(grid, grid_size, iterations, save_interval, save_index++);
         }
     }
 
-    // Save the resulting grid as a PNG file
     if (save_interval == 0) {
         save_image(grid, grid_size, iterations, 0, 0);
     }
 
-    // Create the shell script to compile the video if -m option is specified
+    // Create a shell script to compile the video if -m option is specified
     if (save_interval > 0) {
         FILE* script = fopen("compile-video.sh", "w");
         if (script) {
