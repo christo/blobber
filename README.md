@@ -2,8 +2,7 @@
 
 Experiments in monte carlo simulations of pixels in a grid, based on colour. 
 
-<img width="320" alt="thumbnail" src="https://github.com/christo/blobber/assets/122641/b39ff5a4-c5d0-458d-8f41-219831132067">
-[https://youtu.be/CjznlQxLma0](Watch youtube video)
+[<img width="320" alt="thumbnail" src="https://github.com/christo/blobber/assets/122641/b39ff5a4-c5d0-458d-8f41-219831132067">](https://youtu.be/CjznlQxLma0)
 
 # how it works
 
