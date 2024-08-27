@@ -16,13 +16,11 @@ typedef struct {
 } Point;
 
 // random color using linear distribution over r,g,b components
-Color random_color() {
-    Color color;
-    color.r = rand() % 256;
-    color.g = rand() % 256;
-    color.b = rand() % 256;
-    color.a = 255;  // Opaque
-    return color;
+void randomise_color(Color *color) {
+    color->r = rand() % 256;
+    color->g = rand() % 256;
+    color->b = rand() % 256;
+    color->a = 255;  // Opaque
 }
 
 // color difference
@@ -98,7 +96,7 @@ int main(int argc, char* argv[]) {
 
     Color* grid = (Color*)malloc(grid_size * grid_size * sizeof(Color));
     for (int i = 0; i < grid_size * grid_size; i++) {
-        grid[i] = random_color();
+        randomise_color(&grid[i]);
     }
 
     for (int iter = 0; iter < iterations; iter++) {
