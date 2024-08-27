@@ -65,6 +65,10 @@ void save_image(Color* grid, int grid_size, int iterations, int save_interval, i
     }
     
     unsigned char* image = (unsigned char*)malloc(grid_size * grid_size * 4);
+    if (image == NULL) {
+        fprintf(stderr, "Memory allocation for image failed\n");
+        exit(1);
+    }
     for (int y = 0; y < grid_size; y++) {
         for (int x = 0; x < grid_size; x++) {
             int index = y * grid_size + x;
@@ -95,6 +99,10 @@ int main(int argc, char* argv[]) {
     srand(time(NULL));
 
     Color* grid = (Color*)malloc(grid_size * grid_size * sizeof(Color));
+    if (grid == NULL) {
+        fprintf(stderr, "Memory allocation for grid failed\n");
+        exit(1);
+    }
     for (int i = 0; i < grid_size * grid_size; i++) {
         randomise_color(&grid[i]);
     }
